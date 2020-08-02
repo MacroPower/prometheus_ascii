@@ -22,6 +22,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -38,7 +39,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-func queryPrometheus(promQuery string, server string, offset time.Duration, logger log.Logger) {
+func queryPrometheus(promQuery string, server string, start time.Time, end time.Time, step time.Duration, width int, height int, logger log.Logger) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -51,9 +52,9 @@ func queryPrometheus(promQuery string, server string, offset time.Duration, logg
 	q := v1.NewAPI(client)
 
 	value, warn, err := q.QueryRange(ctx, promQuery, v1.Range{
-		Start: time.Now().Add(offset),
-		End:   time.Now(),
-		Step:  time.Minute,
+		Start: start,
+		End:   end,
+		Step:  step,
 	})
 	if len(warn) > 0 {
 		level.Error(logger).Log("msg", "Too many warnings for query", "query", promQuery, "warn", warn)
@@ -84,7 +85,7 @@ func queryPrometheus(promQuery string, server string, offset time.Duration, logg
 			for _, elem := range series.Values {
 				data = append(data, float64(elem.Value))
 			}
-			graph := asciigraph.Plot(data, asciigraph.Caption(promQuery), asciigraph.Width(100), asciigraph.Height(10))
+			graph := asciigraph.Plot(data, asciigraph.Caption(promQuery), asciigraph.Width(width), asciigraph.Height(height))
 			fmt.Println(graph)
 		}
 	default:
@@ -95,9 +96,12 @@ func queryPrometheus(promQuery string, server string, offset time.Duration, logg
 
 func main() {
 	var (
-		promQuery = kingpin.Flag("prometheus.query", "Prometheus query to submit.").Required().String()
-		server    = kingpin.Flag("prometheus.server", "Prometheus server.").Required().String()
-		start     = kingpin.Flag("query.start", "Time offset (from now) for query.").Default("-30m").Duration()
+		promServer = kingpin.Flag("prometheus.server", "Prometheus server.").Envar("PROMETHEUS_SERVER").Required().String()
+		promQuery  = kingpin.Flag("prometheus.query", "Prometheus query to submit.").Envar("PROMETHEUS_QUERY").Required().String()
+		qStart     = kingpin.Flag("prometheus.query.start", "Start time for query. Layout: 2006-01-02T15:04:05Z").Envar("PROMETHEUS_QUERY_START").Required().String()
+		qEnd       = kingpin.Flag("prometheus.query.end", "End time for query. Defaults to now. Layout: 2006-01-02T15:04:05Z").Envar("PROMETHEUS_QUERY_END").String()
+		gWidth     = kingpin.Flag("prometheus.graph.width", "Width of the graph.").Envar("GRAPH_WIDTH").Default("100").Int()
+		gHeight    = kingpin.Flag("prometheus.graph.height", "Height of the graph.").Envar("GRAPH_HEIGHT").Default("10").Int()
 	)
 
 	promlogConfig := &promlog.Config{}
@@ -109,5 +113,31 @@ func main() {
 
 	level.Info(logger).Log("msg", "Starting", "version", version.Info())
 
-	queryPrometheus(*promQuery, *server, *start, logger)
+	layout := "2006-01-02T15:04:05Z"
+	qStartTime, qStartTimeErr := time.Parse(layout, *qStart)
+	if qStartTimeErr != nil {
+		level.Error(logger).Log("msg", "Could not parse start time", "err", qStartTimeErr)
+		os.Exit(1)
+	}
+
+	var qEndTime time.Time
+	var qEndTimeErr error
+	if *qEnd != "" {
+		qEndTime, qEndTimeErr = time.Parse(layout, *qEnd)
+		if qEndTimeErr != nil {
+			level.Error(logger).Log("msg", "Could not parse end time", "err", qEndTimeErr)
+			os.Exit(1)
+		}
+	} else {
+		qEndTime = time.Now()
+	}
+
+	queryDuration := qEndTime.Sub(qStartTime)
+	level.Info(logger).Log("msg", "Query duration", "seconds", queryDuration.Seconds())
+
+	calcQueryStep := math.Round(queryDuration.Seconds() / float64(*gWidth))
+	calcQueryStepDur := time.Second * time.Duration(calcQueryStep)
+	level.Info(logger).Log("msg", "Calculated step", "seconds", calcQueryStepDur.Seconds())
+
+	queryPrometheus(*promQuery, *promServer, qStartTime, qEndTime, calcQueryStepDur, *gWidth, *gHeight, logger)
 }
