@@ -60,7 +60,8 @@ func Plot(series []float64, options ...Option) string {
 	}
 
 	precision := 2
-	logMaximum = math.Log10(math.Max(math.Abs(maximum), math.Abs(minimum))) //to find number of zeros after decimal
+	absMaxNumber := math.Max(math.Abs(maximum), math.Abs(minimum))
+	logMaximum = math.Log10(absMaxNumber) //to find number of zeros after decimal
 	if minimum == float64(0) && maximum == float64(0) {
 		logMaximum = float64(-1)
 	}
@@ -90,7 +91,28 @@ func Plot(series []float64, options ...Option) string {
 			magnitude = float64(y)
 		}
 
-		label := fmt.Sprintf("%*.*f", maxWidth+1, precision, magnitude)
+		var unit string
+		rPrecision := precision
+		absMagnitude := math.Abs(magnitude)
+		if absMagnitude >= 60 && absMagnitude < 3600 {
+			unit = "min"
+			magnitude = magnitude / float64(60)
+		} else if absMagnitude >= 3600 {
+			unit = "hr"
+			magnitude = magnitude / float64(3600)
+			rPrecision++
+		} else if absMagnitude < 1 {
+			unit = "ms"
+			magnitude = magnitude * float64(1000)
+			rPrecision = 0
+		} else {
+			unit = "s"
+		}
+
+		label := fmt.Sprintf("%*.*f", maxWidth+1, rPrecision, magnitude)
+
+		label += " " + unit + strings.Repeat(" ", 3-len(unit))
+
 		w := y - intmin2
 		h := int(math.Max(float64(config.Offset)-float64(len(label)), 0))
 
