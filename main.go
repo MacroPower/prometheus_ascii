@@ -39,6 +39,11 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
+const (
+	name   = "prometheus_ascii"
+	layout = "2006-01-02T15:04:05Z"
+)
+
 func queryPrometheus(promQuery string, server string, start time.Time, end time.Time, step time.Duration, width int, height int, logger log.Logger) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -67,7 +72,7 @@ func queryPrometheus(promQuery string, server string, start time.Time, end time.
 
 	queryType := value.Type()
 
-	fmt.Println(queryType.String())
+	level.Info(logger).Log("msg", "Retrieved query result", "type", queryType.String())
 
 	switch {
 	case queryType == model.ValScalar:
@@ -98,7 +103,8 @@ func main() {
 	var (
 		promServer = kingpin.Flag("prometheus.server", "Prometheus server.").Envar("PROMETHEUS_SERVER").Required().String()
 		promQuery  = kingpin.Flag("prometheus.query", "Prometheus query to submit.").Envar("PROMETHEUS_QUERY").Required().String()
-		qStart     = kingpin.Flag("prometheus.query.start", "Start time for query. Layout: 2006-01-02T15:04:05Z").Envar("PROMETHEUS_QUERY_START").Required().String()
+		qDur       = kingpin.Flag("prometheus.query.duration", "Duration of query. Overwritten by start.").Envar("PROMETHEUS_QUERY_DUR").Default("24h").Duration()
+		qStart     = kingpin.Flag("prometheus.query.start", "Start time for query. Layout: 2006-01-02T15:04:05Z").Envar("PROMETHEUS_QUERY_START").String()
 		qEnd       = kingpin.Flag("prometheus.query.end", "End time for query. Defaults to now. Layout: 2006-01-02T15:04:05Z").Envar("PROMETHEUS_QUERY_END").String()
 		gWidth     = kingpin.Flag("prometheus.graph.width", "Width of the graph.").Envar("GRAPH_WIDTH").Default("100").Int()
 		gHeight    = kingpin.Flag("prometheus.graph.height", "Height of the graph.").Envar("GRAPH_HEIGHT").Default("10").Int()
@@ -106,19 +112,12 @@ func main() {
 
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
-	kingpin.Version(version.Print("prometheus_ascii"))
+	kingpin.Version(version.Print(name))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
 
 	level.Info(logger).Log("msg", "Starting", "version", version.Info())
-
-	layout := "2006-01-02T15:04:05Z"
-	qStartTime, qStartTimeErr := time.Parse(layout, *qStart)
-	if qStartTimeErr != nil {
-		level.Error(logger).Log("msg", "Could not parse start time", "err", qStartTimeErr)
-		os.Exit(1)
-	}
 
 	var qEndTime time.Time
 	var qEndTimeErr error
@@ -130,6 +129,18 @@ func main() {
 		}
 	} else {
 		qEndTime = time.Now()
+	}
+
+	var qStartTime time.Time
+	var qStartTimeErr error
+	if *qStart != "" {
+		qStartTime, qStartTimeErr = time.Parse(layout, *qStart)
+		if qStartTimeErr != nil {
+			level.Error(logger).Log("msg", "Could not parse start time", "err", qStartTimeErr)
+			os.Exit(1)
+		}
+	} else {
+		qStartTime = qEndTime.Add(-*qDur)
 	}
 
 	queryDuration := qEndTime.Sub(qStartTime)
