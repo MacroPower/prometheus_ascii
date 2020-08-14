@@ -75,14 +75,6 @@ func queryPrometheus(promQuery string, server string, start time.Time, end time.
 	level.Info(logger).Log("msg", "Retrieved query result", "type", queryType.String())
 
 	switch {
-	case queryType == model.ValScalar:
-		scalarVal := value.(*model.Scalar)
-		fmt.Println(scalarVal.Value)
-	case queryType == model.ValVector:
-		vectorVal := value.(model.Vector)
-		for _, elem := range vectorVal {
-			fmt.Println(elem.Value)
-		}
 	case queryType == model.ValMatrix:
 		matrixVal := value.(model.Matrix)
 		for _, series := range matrixVal {
