@@ -44,7 +44,7 @@ const (
 	layout = "2006-01-02T15:04:05Z"
 )
 
-func queryPrometheus(promQuery string, server string, start time.Time, end time.Time, step time.Duration, width int, height int, logger log.Logger) {
+func queryPrometheus(promQuery string, server string, start time.Time, end time.Time, step time.Duration, logger log.Logger, options ...asciigraph.Option) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -82,7 +82,7 @@ func queryPrometheus(promQuery string, server string, start time.Time, end time.
 			for _, elem := range series.Values {
 				data = append(data, float64(elem.Value))
 			}
-			graph := asciigraph.Plot(data, asciigraph.Caption(promQuery), asciigraph.Width(width), asciigraph.Height(height))
+			graph := asciigraph.Plot(data, options...)
 			fmt.Println(graph)
 		}
 	default:
@@ -143,5 +143,14 @@ func main() {
 	calcQueryStepDur := time.Second * time.Duration(calcQueryStep)
 	level.Info(logger).Log("msg", "Calculated step", "seconds", calcQueryStepDur.Seconds())
 
-	queryPrometheus(*promQuery, *promServer, qStartTime, qEndTime, calcQueryStepDur, *gWidth, *gHeight, logger)
+	asciigraphOptions := []asciigraph.Option{
+		asciigraph.Height(*gHeight),
+		asciigraph.Width(*gWidth),
+	}
+
+	if *gCaption == true {
+		asciigraphOptions = append(asciigraphOptions, asciigraph.Caption(*promQuery))
+	}
+
+	queryPrometheus(*promQuery, *promServer, qStartTime, qEndTime, calcQueryStepDur, logger, asciigraphOptions...)
 }
