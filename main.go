@@ -93,14 +93,14 @@ func queryPrometheus(promQuery string, server string, start time.Time, end time.
 
 func main() {
 	var (
-		promServer = kingpin.Flag("server.endpoint", "Prometheus server.").Envar("PROMETHEUS-ASCII_SERVER_ENDPOINT").Required().String()
-		promQuery  = kingpin.Flag("query.selector", "Prometheus query to submit.").Envar("PROMETHEUS-ASCII_QUERY_SELECTOR").Required().String()
-		qDur       = kingpin.Flag("query.duration", "Duration of query. Overwritten by start.").Envar("PROMETHEUS-ASCII_QUERY_DURATION").Default("24h").Duration()
-		qStart     = kingpin.Flag("query.start", "Start time for query. Layout: "+layout).Envar("PROMETHEUS-ASCII_QUERY_START").String()
-		qEnd       = kingpin.Flag("query.end", "End time for query. Defaults to now. Layout: "+layout).Envar("PROMETHEUS-ASCII_QUERY_END").String()
-		gCaption   = kingpin.Flag("graph.query-caption", "Adds a caption to the graph with the current query").Envar("PROMETHEUS-ASCII_GRAPH_QUERY-CAPTION").Default("False").Bool()
-		gWidth     = kingpin.Flag("graph.width", "Width of the graph.").Envar("PROMETHEUS-ASCII_GRAPH_WIDTH").Default("100").Int()
-		gHeight    = kingpin.Flag("graph.height", "Height of the graph.").Envar("PROMETHEUS-ASCII_GRAPH_HEIGHT").Default("10").Int()
+		promServer = kingpin.Flag("server.endpoint", "Prometheus server.").Envar("PROMETHEUS_ASCII_SERVER_ENDPOINT").Required().String()
+		promQuery  = kingpin.Flag("query.selector", "Prometheus query to submit.").Envar("PROMETHEUS_ASCII_QUERY_SELECTOR").Required().String()
+		qDur       = kingpin.Flag("query.duration", "Duration of query. Overwritten by start.").Envar("PROMETHEUS_ASCII_QUERY_DURATION").Default("24h").Duration()
+		qStart     = kingpin.Flag("query.start", "Start time for query. Layout: "+layout).Envar("PROMETHEUS_ASCII_QUERY_START").String()
+		qEnd       = kingpin.Flag("query.end", "End time for query. Defaults to now. Layout: "+layout).Envar("PROMETHEUS_ASCII_QUERY_END").String()
+		gCaption   = kingpin.Flag("graph.query-caption", "Adds a caption to the graph with the current query").Envar("PROMETHEUS_ASCII_GRAPH_QUERYCAPTION").Default("False").Bool()
+		gWidth     = kingpin.Flag("graph.width", "Width of the graph.").Envar("PROMETHEUS_ASCII_GRAPH_WIDTH").Default("100").Int()
+		gHeight    = kingpin.Flag("graph.height", "Height of the graph.").Envar("PROMETHEUS_ASCII_GRAPH_HEIGHT").Default("10").Int()
 	)
 
 	promlogConfig := &promlog.Config{}
